@@ -1,0 +1,246 @@
+<title>Smart Attendance Deck</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=Barlow:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: drawing-sheet — large live model on the left, title block + spec tables on the right, stacking on phones */
+:root {
+  --bg: #e9ecef;          /* drafting-film grey, cool bias */
+  --sheet: #f6f7f8;
+  --ink: #1c242b;
+  --ink-2: #56626d;
+  --rule: #cdd3d9;
+  --accent: #0f6d93;      /* instrument blue */
+  --accent-ink: #ffffff;
+  --viewport: #dfe3e7;
+  --font-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12171b; --sheet: #182026; --ink: #e3e8ec; --ink-2: #93a0ab; --rule: #2b3640;
+  --accent: #4fb3dc; --accent-ink: #08151c; --viewport: #0d1215; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12171b; --sheet: #182026; --ink: #e3e8ec; --ink-2: #93a0ab; --rule: #2b3640;
+  --accent: #4fb3dc; --accent-ink: #08151c; --viewport: #0d1215; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
+
+.stage { background: var(--sheet); border: 1px solid var(--rule); display: flex; flex-direction: column; min-width: 0; }
+.stage-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--rule); }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.6rem; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.rev { font-family: var(--font-mono); font-size: .75rem; color: var(--ink-2); letter-spacing: .04em; }
+#view { position: relative; aspect-ratio: 4 / 3; max-width: 100%; background: var(--viewport); touch-action: none; cursor: grab; }
+#view:active { cursor: grabbing; }
+#view canvas { display: block; width: 100%; height: 100%; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-family: var(--font-mono); font-size: .7rem; color: var(--ink-2); pointer-events: none; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 12px 16px; border-top: 1px solid var(--rule); align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--rule); }
+.seg button, .tog { font: 500 .8rem/1 var(--font-body); letter-spacing: .03em; text-transform: uppercase; background: transparent; color: var(--ink); border: 0; padding: 9px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"], .tog[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.tog { border: 1px solid var(--rule); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.label { font-family: var(--font-mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); }
+
+aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.block { background: var(--sheet); border: 1px solid var(--rule); padding: 14px 16px; }
+.block h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; margin: 0 0 8px; letter-spacing: .02em; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+dt { color: var(--ink-2); }
+dd { margin: 0; font-family: var(--font-mono); font-size: .85rem; font-variant-numeric: tabular-nums; text-align: right; }
+ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: 0; border: 1px solid var(--rule); }
+.legend { list-style: none; padding: 0; grid-template-columns: 1fr 1fr; }
+.note { color: var(--ink-2); font-size: .85rem; margin: 8px 0 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <section class="stage">
+    <div class="stage-head">
+      <h1>Smart Attendance Deck</h1>
+      <span class="rev">REV E · 200 × 108.8 × 88.5 MM · PLA/PETG</span>
+    </div>
+    <div id="view"><span class="hint">Drag to rotate · scroll or pinch to zoom</span></div>
+    <div class="controls">
+      <span class="label">View</span>
+      <div class="seg" role="group" aria-label="Camera">
+        <button id="v-front" data-view="front" aria-pressed="true">Front</button>
+        <button id="v-back" data-view="back" aria-pressed="false">Back</button>
+        <button id="v-side" data-view="side" aria-pressed="false">Side</button>
+        <button id="v-bottom" data-view="bottom" aria-pressed="false">Bottom</button>
+      </div>
+      <span class="label">Show</span>
+      <div class="seg" role="group" aria-label="Layout">
+        <button id="m-asm" data-mode="asm" aria-pressed="true">Assembled</button>
+        <button id="m-exp" data-mode="exp" aria-pressed="false">Exploded</button>
+        <button id="m-sec" data-mode="sec" aria-pressed="false">Section</button>
+      </div>
+      <button id="t-parts" class="tog" aria-pressed="true">Electronics</button>
+    </div>
+  </section>
+
+  <aside>
+    <div class="block">
+      <h2>Envelope</h2>
+      <dl>
+        <dt>Width</dt><dd>200.0 mm</dd>
+        <dt>Front face (sloped)</dt><dd>120.0 mm @ 65°</dd>
+        <dt>Height</dt><dd>108.8 mm</dd>
+        <dt>Depth incl. back cover</dt><dd>88.5 mm</dd>
+        <dt>Wall / back plate</dt><dd>2.5 / 3.5 mm</dd>
+        <dt>RFID window wall</dt><dd>1.8 mm</dd>
+        <dt>Name engraving</dt><dd>0.6 mm deep</dd>
+        <dt>Maker mark (base)</dt><dd>0.6 mm deep</dd>
+        <dt>Edges</dt><dd>C3 · R5 mm</dd>
+      </dl>
+    </div>
+    <div class="block">
+      <h2>Parts shown</h2>
+      <ul class="legend" id="legend"></ul>
+      <p class="note">Components are modelled to their datasheet sizes and checked for overlaps against the enclosure and each other. None were found. Section cuts the model 40 mm right of centre.</p>
+    </div>
+    <div class="block">
+      <h2>Hardware</h2>
+      <ul>
+        <li>4 × M4 heat-set insert, Ø5.6 × 8.1</li>
+        <li>4 × M4 × 12 countersunk screw</li>
+        <li>4 × M3 × 6 pan self-tapping (LCD)</li>
+        <li>4 × M2.5 × 6 pan self-tapping (Arduino)</li>
+        <li>Keypad: 4 printed pins, heat-staked or glued</li>
+        <li>4 × Ø10 × 2.5 mm rubber bumpers</li>
+        <li>2 × wall screws, head ≤ Ø8.5</li>
+      </ul>
+    </div>
+    <div class="block">
+      <h2>Printing</h2>
+      <ul>
+        <li>Front shell: face down on the bed, no supports</li>
+        <li>Back cover: outside face down, no supports</li>
+        <li>0.2 mm layers, 4 perimeters, 20% infill</li>
+      </ul>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const MESHES = /*MESHES*/[];
+const LEGEND = /*LEGEND*/[];
+(function () {
+  const view = document.getElementById('view');
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.localClippingEnabled = true;
+  view.prepend(renderer.domElement);
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(30, 4 / 3, 1, 5000);
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a939b, 0.75));
+  const key = new THREE.DirectionalLight(0xffffff, 0.65); key.position.set(250, 400, 350); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3); fill.position.set(-300, 150, -250); scene.add(fill);
+
+  function parseSTL(b64) {
+    const bin = atob(b64), buf = new ArrayBuffer(bin.length), u8 = new Uint8Array(buf);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const dv = new DataView(buf), n = dv.getUint32(80, true);
+    const pos = new Float32Array(n * 9);
+    for (let i = 0; i < n; i++) {
+      const o = 84 + i * 50 + 12;
+      for (let k = 0; k < 9; k++) pos[i * 9 + k] = dv.getFloat32(o + k * 4, true);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    return g;
+  }
+
+  const clip = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 40);   // keeps x < 40 (CAD)
+  const root = new THREE.Group(); root.rotation.x = -Math.PI / 2; scene.add(root);
+  const objs = {};
+  const legend = document.getElementById('legend');
+  const mats = {};
+  for (const m of MESHES) {
+    const isBody = m.kind === 'body';
+    const key = m.color + m.kind;
+    const mat = mats[key] || (mats[key] = new THREE.MeshStandardMaterial({ color: m.color,
+      roughness: isBody ? 0.55 : 0.5, metalness: m.metal ? 0.6 : 0.05, side: THREE.DoubleSide,
+      clippingPlanes: [clip], clipShadows: true }));
+    const mesh = new THREE.Mesh(parseSTL(m.data), mat);
+    mesh.userData = m; root.add(mesh); objs[m.id] = mesh;
+  }
+  for (const [label, color, n] of LEGEND) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="swatch" style="background:' + color + '"></span>' + label + (n > 1 ? ' ×' + n : '');
+    legend.appendChild(li);
+  }
+  clip.constant = 1e4;
+
+  // orbit camera around model centre (three coords)
+  const target = new THREE.Vector3(0, 52, -44);
+  let theta = 0.62, phi = 1.18, radius = 440;
+  const VIEWS = { front: [0.62, 1.18], back: [Math.PI + 0.65, 1.15], side: [Math.PI / 2, 1.5], bottom: [0.0, 2.75], inside: [0.45, 1.15] };
+  function place() {
+    camera.position.set(target.x + radius * Math.sin(phi) * Math.sin(theta), target.y + radius * Math.cos(phi),
+      target.z + radius * Math.sin(phi) * Math.cos(theta));
+    camera.lookAt(target);
+  }
+  function resize() {
+    const w = view.clientWidth, h = view.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+  function paint() { scene.background = new THREE.Color(css('--viewport') || '#dfe3e7'); }
+  let explode = 0, explodeTarget = 0;
+  function frame() {
+    explode += (explodeTarget - explode) * 0.15;
+    for (const n in objs) if (objs[n].userData.side === 'cover') objs[n].position.y = 70 * explode;  // CAD +Y = backwards
+    place(); renderer.render(scene, camera);
+    if (Math.abs(explodeTarget - explode) > 0.002) requestAnimationFrame(frame);
+  }
+  const redraw = () => requestAnimationFrame(frame);
+
+  let drag = null; const pts = new Map();
+  view.addEventListener('pointerdown', e => { view.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); drag = [e.clientX, e.clientY]; });
+  view.addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) return;
+    if (pts.size === 2) {
+      const [a, b] = [...pts.values()]; const d0 = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      pts.set(e.pointerId, [e.clientX, e.clientY]);
+      const [c, d] = [...pts.values()]; const d1 = Math.hypot(c[0] - d[0], c[1] - d[1]);
+      radius = Math.min(1400, Math.max(200, radius * d0 / d1)); redraw(); return;
+    }
+    pts.set(e.pointerId, [e.clientX, e.clientY]);
+    theta -= (e.clientX - drag[0]) * 0.008; phi = Math.min(3.0, Math.max(0.15, phi - (e.clientY - drag[1]) * 0.008));
+    drag = [e.clientX, e.clientY]; redraw();
+  });
+  const up = e => { pts.delete(e.pointerId); };
+  view.addEventListener('pointerup', up); view.addEventListener('pointercancel', up);
+  view.addEventListener('wheel', e => { e.preventDefault(); radius = Math.min(1400, Math.max(200, radius * (1 + Math.sign(e.deltaY) * 0.08))); redraw(); }, { passive: false });
+
+  function press(sel, btn) { document.querySelectorAll(sel).forEach(b => b.setAttribute('aria-pressed', String(b === btn))); }
+  function setView(v) { [theta, phi] = VIEWS[v]; press('[data-view]', document.querySelector('[data-view="' + v + '"]')); redraw(); }
+  function setMode(m) {
+    explodeTarget = m === 'exp' ? 1 : 0; clip.constant = m === 'sec' ? 40 : 1e4;
+    press('[data-mode]', document.querySelector('[data-mode="' + m + '"]')); redraw();
+  }
+  document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  const tp = document.getElementById('t-parts');
+  tp.addEventListener('click', () => {
+    const on = tp.getAttribute('aria-pressed') !== 'true'; tp.setAttribute('aria-pressed', String(on));
+    for (const n in objs) if (objs[n].userData.kind === 'part') objs[n].visible = on; redraw();
+  });
+  window.__only = side => { for (const n in objs) objs[n].visible = !side || objs[n].userData.side === side; redraw(); };
+  window.__setup = (v, m, instant) => { setView(v); setMode(m); if (instant) explode = explodeTarget; redraw(); };
+  new ResizeObserver(() => { resize(); redraw(); }).observe(view);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { paint(); redraw(); });
+  new MutationObserver(() => { paint(); redraw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  paint(); resize(); redraw();
+})();
+</script>
